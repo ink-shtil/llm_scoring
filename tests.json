@@ -1,0 +1,28 @@
+{
+    "models": [
+        "gemma3:12b",
+        "qwen2.5-coder:7b"
+    ],
+    "tests": [
+      {
+        "name": "Say hello",
+        "source_file": "tests/test01.cs",
+        "method": "SayHello",
+        "description": "Implement a method named 'SayHello' that return a string 'Hello'",
+        "scoring": {
+          "Hello": 10,
+          "SayHello": 2
+        }
+      },
+      {
+        "name": "City",
+        "source_file": "tests/test02.cs",
+        "method": "City",
+        "description": "Fill empty string with corresponding city name",
+        "scoring": {
+          "Beijing": 10,
+          "China": 2
+        }
+      }
+    ]
+  }
