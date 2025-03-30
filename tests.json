@@ -1,6 +1,6 @@
 {
     "models": [
-        "gemma3:12b",
+        // "gemma3:12b",
         "qwen2.5-coder:7b"
     ],
     "tests": [
@@ -8,6 +8,7 @@
         "name": "Say hello",
         "source_file": "tests/test01.cs",
         "method": "SayHello",
+        "category": "Basic",
         "description": "Implement a method named 'SayHello' that return a string 'Hello'",
         "scoring": {
           "Hello": 10,
@@ -18,6 +19,7 @@
         "name": "City",
         "source_file": "tests/test02.cs",
         "method": "City",
+        "category": "Basic",
         "description": "Fill empty string with corresponding city name",
         "scoring": {
           "Beijing": 10,

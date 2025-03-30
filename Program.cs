@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
 using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.Linq;
 
 string jsonFilePath = "tests.json";
 string jsonString = File.ReadAllText(jsonFilePath);
@@ -12,15 +14,36 @@ foreach (var model in testsConfig.Models)
     int maxPoints = 0;
     var ollama = new OllamaQueryService();
     await ollama.PullModelAsync(model);
+
+    var categoryResults = new Dictionary<string, (int TotalPoints, int MaxPoints)>();
+
     foreach (var test in testsConfig.Tests)
     {
+        if (!categoryResults.ContainsKey(test.Category))
+        {
+            categoryResults[test.Category] = (0, 0);
+        }
+
         maxPoints += test.Scoring.Values.Max();
         int points = await RunTest(test, model, rndName);
         totalPoints += points;
+
+        var (currentTotalPoints, currentMaxPoints) = categoryResults[test.Category];
+        categoryResults[test.Category] = (currentTotalPoints + points, currentMaxPoints + test.Scoring.Values.Max());
     }
 
     double percent = (double)totalPoints / maxPoints * 100;
     Console.WriteLine($"{model}: {totalPoints} / {maxPoints}, {percent:F2}%");
+
+    foreach (var category in categoryResults)
+    {
+        CategoryResults(category);
+    }
+
+    var stat = (categoryResults.Values.Sum(c => c.TotalPoints), categoryResults.Values.Sum(c => c.MaxPoints));
+    var total = new KeyValuePair<string, (int, int)>("Total", stat);
+
+    CategoryResults(total);
 }
 
 static async Task<int> RunTest(Test test, string model, string testRndName)
@@ -164,6 +187,34 @@ static async Task CopyAndEvaluateSourceFile(Test test, string model, string dest
 
 static string GenerateRandomString(int length) => Guid.NewGuid().ToString("n")[..length];
 
+static void CategoryResults(KeyValuePair<string, (int TotalPoints, int MaxPoints)> category)
+{
+    double categoryPercent = (double)category.Value.TotalPoints / category.Value.MaxPoints * 100;
+    
+    // Save original console color
+    ConsoleColor originalColor = Console.ForegroundColor;
+    
+    // Print category name in cyan
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.Write($"{category.Key,20}");
+    Console.ForegroundColor = originalColor;
+    
+    Console.Write(" Points: ");
+    Console.Write($"{category.Value.TotalPoints}/{category.Value.MaxPoints}, ");
+    
+    // Set percentage color using switch expression
+    Console.ForegroundColor = categoryPercent switch
+    {
+        < 40 => ConsoleColor.Red,
+        < 80 => ConsoleColor.Yellow,
+        _ => ConsoleColor.Green
+    };
+    
+    Console.Write($"{categoryPercent,6:F2}%");
+    Console.ForegroundColor = originalColor;
+    Console.WriteLine();
+}
+
 public class TestsConfig
 {
     [JsonProperty("models")]
@@ -181,6 +232,8 @@ public class Test
     public string SourceFile { get; set; }
     [JsonProperty("method")]
     public string Method { get; set; }
+    [JsonProperty("category")]
+    public string Category { get; set; }
     [JsonProperty("description")]
     public string Description { get; set; }
     [JsonProperty("scoring")]
