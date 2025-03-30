@@ -1,7 +1,5 @@
 ﻿using System.Diagnostics;
 using Newtonsoft.Json;
-using System.Collections.Generic;
-using System.Linq;
 
 string jsonFilePath = "tests.json";
 string jsonString = File.ReadAllText(jsonFilePath);
@@ -15,35 +13,31 @@ foreach (var model in testsConfig.Models)
     var ollama = new OllamaQueryService();
     await ollama.PullModelAsync(model);
 
-    var categoryResults = new Dictionary<string, (int TotalPoints, int MaxPoints)>();
+    var allStat = new List<Stat>();
 
-    foreach (var test in testsConfig.Tests)
+    foreach (var test in testsConfig.Tests.GroupBy(_ => _.Category).SelectMany(_ => _))
     {
-        if (!categoryResults.ContainsKey(test.Category))
-        {
-            categoryResults[test.Category] = (0, 0);
-        }
-
         maxPoints += test.Scoring.Values.Max();
+        var sw = Stopwatch.StartNew();
         int points = await RunTest(test, model, rndName);
+        sw.Stop();
         totalPoints += points;
 
-        var (currentTotalPoints, currentMaxPoints) = categoryResults[test.Category];
-        categoryResults[test.Category] = (currentTotalPoints + points, currentMaxPoints + test.Scoring.Values.Max());
+        var newStat = new Stat(test.Category, points, test.Scoring.Values.Max(), sw.Elapsed);
+        allStat.Add(newStat);
+        TestResults(newStat.WithName(test.Name));
     }
 
-    double percent = (double)totalPoints / maxPoints * 100;
-    Console.WriteLine($"{model}: {totalPoints} / {maxPoints}, {percent:F2}%");
+    TotalLine();
 
-    foreach (var category in categoryResults)
+    var total = new Stat().WithName("Total");
+    foreach (var gr in allStat.GroupBy(_ => _.Category))
     {
-        CategoryResults(category);
+        var categorySum = gr.Aggregate(new Stat(gr.Key, 0, 0, TimeSpan.Zero), (acc, stat) => acc + stat);
+        TestResults(categorySum);
+        total += categorySum.WithName("Total");
     }
-
-    var stat = (categoryResults.Values.Sum(c => c.TotalPoints), categoryResults.Values.Sum(c => c.MaxPoints));
-    var total = new KeyValuePair<string, (int, int)>("Total", stat);
-
-    CategoryResults(total);
+    TestResults(total);
 }
 
 static async Task<int> RunTest(Test test, string model, string testRndName)
@@ -63,16 +57,15 @@ static async Task<int> RunTest(Test test, string model, string testRndName)
 
 static async Task<string> CompileAndRun(Test test, string testName, string model)
 {
-    Console.WriteLine($"test={test.Name}");
     string sourceFilePath = test.SourceFile;
-    string methodName = test.Method;
+    string projectName = test.Name.Replace(" ", "");
 
     string currentDirectory = Directory.GetCurrentDirectory();
-    string testDirectory = Path.Combine(currentDirectory, "generated", testName, model.Replace(':', '_')!, methodName);
+    string testDirectory = Path.Combine(currentDirectory, "generated", testName, model.Replace(':', '_')!, projectName);
 
     Directory.CreateDirectory(testDirectory);
 
-    string projectFilePath = Path.Combine(testDirectory, $"{methodName}.csproj");
+    string projectFilePath = Path.Combine(testDirectory, $"{projectName}.csproj");
 
     CreateDotNetProject(testDirectory);
 
@@ -81,7 +74,6 @@ static async Task<string> CompileAndRun(Test test, string testName, string model
     var sw = Stopwatch.StartNew();
     await CopyAndEvaluateSourceFile(test, model, testDirectory);
     sw.Stop();
-    Console.WriteLine($"Ollama call elapsed: {sw}");
     var wd = Path.GetDirectoryName(projectFilePath);
 
     var runBuild = new Process
@@ -187,22 +179,20 @@ static async Task CopyAndEvaluateSourceFile(Test test, string model, string dest
 
 static string GenerateRandomString(int length) => Guid.NewGuid().ToString("n")[..length];
 
-static void CategoryResults(KeyValuePair<string, (int TotalPoints, int MaxPoints)> category)
+static void TestResults(Stat stat)
 {
-    double categoryPercent = (double)category.Value.TotalPoints / category.Value.MaxPoints * 100;
+    double categoryPercent = (double)stat.TotalPoints / stat.MaxPoints * 100d;
     
     // Save original console color
     ConsoleColor originalColor = Console.ForegroundColor;
     
     // Print category name in cyan
     Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.Write($"{category.Key,20}");
+    Console.Write($"{stat.Category, 20}");
     Console.ForegroundColor = originalColor;
+
+    Console.Write($" {stat.TotalPoints, 2}/{stat.MaxPoints}, ");
     
-    Console.Write(" Points: ");
-    Console.Write($"{category.Value.TotalPoints}/{category.Value.MaxPoints}, ");
-    
-    // Set percentage color using switch expression
     Console.ForegroundColor = categoryPercent switch
     {
         < 40 => ConsoleColor.Red,
@@ -210,9 +200,14 @@ static void CategoryResults(KeyValuePair<string, (int TotalPoints, int MaxPoints
         _ => ConsoleColor.Green
     };
     
-    Console.Write($"{categoryPercent,6:F2}%");
+    Console.Write($"{categoryPercent,4:F0}%");
     Console.ForegroundColor = originalColor;
-    Console.WriteLine();
+    Console.WriteLine($" {stat.Duration:mm\\:ss\\.ff}");
+}
+
+static void TotalLine()
+{
+    Console.WriteLine("".PadLeft(44, '='));
 }
 
 public class TestsConfig
@@ -230,12 +225,25 @@ public class Test
     public string Name { get; set; }
     [JsonProperty("source_file")]
     public string SourceFile { get; set; }
-    [JsonProperty("method")]
-    public string Method { get; set; }
     [JsonProperty("category")]
     public string Category { get; set; }
     [JsonProperty("description")]
     public string Description { get; set; }
     [JsonProperty("scoring")]
     public Dictionary<string, int> Scoring { get; set; }
+}
+
+internal record struct Stat(string Category, int TotalPoints, int MaxPoints, TimeSpan Duration)
+{
+    public static Stat operator +(Stat a, Stat b)
+    {
+        return new Stat(
+            a.Category,
+            a.TotalPoints + b.TotalPoints,
+            a.MaxPoints + b.MaxPoints,
+            a.Duration + b.Duration
+        );
+    }
+
+    public Stat WithName(string name) => new (name, TotalPoints, MaxPoints, Duration);
 }

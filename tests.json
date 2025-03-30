@@ -1,26 +1,24 @@
 {
     "models": [
-        // "gemma3:12b",
+        "gemma3:12b",
         "qwen2.5-coder:7b"
     ],
     "tests": [
       {
-        "name": "Say hello",
+        "name": "Say Hello",
         "source_file": "tests/test01.cs",
-        "method": "SayHello",
         "category": "Basic",
-        "description": "Implement a method named 'SayHello' that return a string 'Hello'",
+        "description": "Implement a method named 'SayHello' that return a string 'Hello'. Show updated version of whole file.",
         "scoring": {
           "Hello": 10,
           "SayHello": 2
         }
       },
       {
-        "name": "City",
+        "name": "Beijing City",
         "source_file": "tests/test02.cs",
-        "method": "City",
         "category": "Basic",
-        "description": "Fill empty string with corresponding city name",
+        "description": "Fill empty string with corresponding city name. Show updated version of whole file.",
         "scoring": {
           "Beijing": 10,
           "China": 2

@@ -14,7 +14,11 @@ public class OllamaQueryService
     // Pulls a model if not already downloaded
     public async Task PullModelAsync(string modelName)
     {
-        Console.WriteLine($"Ollama pulling model '{modelName}'");
+        Console.Write($"Ollama model '");
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.Write($"{modelName}");
+        Console.ResetColor(); // Reset to default color
+        Console.WriteLine($"'");
 
         var requestData = new
         {
@@ -23,7 +27,7 @@ public class OllamaQueryService
         };
 
         var content = new StringContent(
-            Newtonsoft.Json.JsonConvert.SerializeObject(requestData),
+            JsonConvert.SerializeObject(requestData),
             Encoding.UTF8,
             "application/json"
         );
@@ -50,7 +54,7 @@ public class OllamaQueryService
         };
 
         var content = new StringContent(
-            Newtonsoft.Json.JsonConvert.SerializeObject(requestData),
+            JsonConvert.SerializeObject(requestData),
             Encoding.UTF8,
             "application/json"
         );
