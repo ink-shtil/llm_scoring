@@ -1,28 +1,52 @@
 {
     "models": [
-        "gemma3:12b",
-        "qwen2.5-coder:7b"
+      // "qwen2.5-coder:7b",
+      // "qwen2.5-coder:14b",
+      // "deepseek-r1:8b",
+      // "deepseek-r1:14b",
+      "gemma3:1b",
+      // "gemma3:4b",
+      // "gemma3:12b"
     ],
     "tests": [
       {
-        "name": "Say Hello",
-        "source_file": "tests/test01.cs",
+        "dir": "HelloWorld",
         "category": "Basic",
-        "description": "Implement a method named 'SayHello' that return a string 'Hello'. Show updated version of whole file.",
-        "scoring": {
-          "Hello": 10,
-          "SayHello": 2
-        }
+        "prompt": "Implement the Say method here {HelloClass.cs}. It should return a string \"HelloWorld\". Please provide the complete updated version of the file 'HelloClass.cs'.",
+        "results": [
+          { "lang": "csharp", "file": "HelloClass.cs" }
+        ],
+        "scoring": [
+          { "output": "HelloWorld", "type": "exact", "score": 5 },
+          { "output": "Hello", "type": "contains", "score": 1 },
+          { "output": "World", "type": "contains", "score": 1 }
+        ]
       },
       {
-        "name": "Beijing City",
-        "source_file": "tests/test02.cs",
+        "dir": "GuessCity",
         "category": "Basic",
-        "description": "Fill empty string with corresponding city name. Show updated version of whole file.",
-        "scoring": {
-          "Beijing": 10,
-          "China": 2
-        }
+        "prompt": "Implement not implemented method here {Cities.cs}. It should return a corresponding city name. Please provide the complete updated version of the file 'Cities.cs'.",
+        "results": [
+          { "lang": "csharp", "file": "Cities.cs" }
+        ],
+        "scoring": [
+          { "output": "Beijing", "type": "exact", "score": 5 },
+          { "output": "Beijing", "type": "contains", "score": 1 },
+          { "output": "China", "type": "contains", "score": 1 }
+        ]
+      },
+      {
+        "dir": "TwoNumSum",
+        "category": "Basic",
+        "prompt": "Implement not implemented method here {MathLib.cs}. It should return a sum of arguments. Please provide the complete updated version of the file 'MathLib.cs'.",
+        "results": [
+          { "lang": "csharp", "file": "MathLib.cs" }
+        ],
+        "scoring": [
+          { "output": "15", "type": "exact", "score": 5 },
+          { "output": "10", "type": "contains", "score": 1 },
+          { "output": "5", "type": "contains", "score": 1 }
+        ]
       }
     ]
-  }
+}
