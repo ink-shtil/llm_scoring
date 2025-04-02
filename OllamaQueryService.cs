@@ -42,14 +42,14 @@ public class OllamaQueryService
         response.EnsureSuccessStatusCode();
     }
 
-    // Queries the model with file context
-    public async Task<string> QueryModelAsync(string modelName, string filePath, string question)
+    public Task WarmUp(string modelName) => QueryModelAsync(modelName, "Hello");
+
+    public async Task<string> QueryModelAsync(string modelName, string question)
     {
-        string fileContent = await File.ReadAllTextAsync(filePath);
         var requestData = new
         {
             model = modelName,
-            prompt = $"Context:\n{fileContent}\n\nQuestion: {question}",
+            prompt = question,
             stream = false
         };
 
@@ -70,9 +70,9 @@ public class OllamaQueryService
         return await response.Content.ReadAsStringAsync();
     }
 
-    public async Task<OllamaResponse> QueryModelAndParseAsync(string modelName, string filePath, string question)
+    public async Task<OllamaResponse> QueryModelAndParseAsync(string modelName, string question)
     {
-        string responseJson = await QueryModelAsync(modelName, filePath, question);
+        string responseJson = await QueryModelAsync(modelName, question);
         return JsonConvert.DeserializeObject<OllamaResponse>(responseJson);
     }
 }
@@ -92,19 +92,23 @@ public class OllamaResponse
     public int EvalCount { get; set; }
     public long EvalDuration { get; set; }
 
-    public string[] ExtractCsharpBlocks()
+    public List<(string Lang, string Content)> ExtractCodeBlocks(ICollection<string> langs)
     {
-        // Define the regex pattern to match text between ```csharp...```
-        string pattern = @"```csharp(.*?)```";
-        var matches = Regex.Matches(Response, pattern, RegexOptions.Singleline);
+        var results = new List<(string, string)>();
 
-        // Extract all matched groups
-        string[] results = new string[matches.Count];
-        for (int i = 0; i < matches.Count; i++)
+        foreach (var lang in langs)
         {
-            if (matches[i].Groups.Count > 1)
+            // Define the regex pattern to match text between ```lang...```
+            string pattern = $@"```{lang}(.*?)```";
+            var matches = Regex.Matches(Response, pattern, RegexOptions.Singleline);
+
+            // Extract all matched groups
+            for (int i = 0; i < matches.Count; i++)
             {
-                results[i] = matches[i].Groups[1].Value;
+                if (matches[i].Groups.Count > 1)
+                {
+                    results.Add((lang, matches[i].Groups[1].Value));
+                }
             }
         }
 
